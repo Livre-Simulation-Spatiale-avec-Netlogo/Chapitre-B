@@ -1,0 +1,52 @@
+to initialize-length     
+  set road-size-patch sum [link-length] of edges      
+  set patch-size-km ( road-size-km / road-size-patch )   
+  set car-size-km car-size / 1000 
+  set car-size-patch ( car-size-km / patch-size-km )
+end
+
+to initialize-globals
+  set nb-edges count edges 
+end
+
+to initialize-edges
+  ask edges 
+  [
+           set max-speed-km-h maximum-speed-on-edges
+           set max-speed-km-sec max-speed-km-h / 3600
+           set max-speed-patch-tick max-speed-km-sec / patch-size-km    ; 1 tick = 1 sec
+           set current-concentration 0.0
+           set current-flow current-concentration * max-speed-patch-tick  
+           set edge-size-km road-size-km / nb-edges
+           set edge-size-patch road-size-patch / nb-edges
+           set nb-max-cars-on-edges int ( edge-size-km / car-size-km ) 
+           set critical-concentration nb-max-cars-on-edges * critical-concentration-reduction-factor
+           set max-flow critical-concentration * max-speed-patch-tick
+  ]
+end
+
+to setup-cars
+  ask node 0                ; by default, all cars are created on the same edge 
+  [
+    let considered-edge one-of my-out-edges 
+    ask considered-edge 
+    [
+      set nb-cars-init nb-max-cars-on-edges * initial-trafic-factor  ; 
+      set current-concentration nb-cars-init
+    ]
+    if traffic-function != "LWR"
+    [
+      hatch-cars nb-cars-init
+      [
+        set my-current-edge considered-edge
+        set current-node [end1] of my-current-edge
+        set next-node [end1] of my-current-edge                                                               ;all cars are directly managed by function update-car-position
+        set concentration-of-my-current-edge count cars with [my-current-edge = [my-current-edge] of myself]  ;cars update this attribute one after the other, which amounts to define an order of positioning on the edge 
+        set size 0.4
+        set shape "arn-car-yellow"
+      ]
+      update-car-position
+      ask cars [fd random-float [edge-size-patch] of my-current-edge]
+    ]
+  ]
+end

@@ -1,0 +1,142 @@
+ to discretise-LWR-edges
+  set nb-subedges  int ( [edge-size-patch] of one-of edges / [max-speed-patch-tick] of one-of edges ) 
+  if nb-subedges > 1
+  [
+  
+   generate-SubNodes
+   generate-SubEdges
+   ask edges with [sub-edge = 0 and LWR-section = 1] 
+   [
+     die
+   ]
+   initialize-subedges
+  ]
+ 
+ end
+ 
+
+to generate-SubNodes
+  if traffic-function = "LWR" and not any? edges with [lwr-section = 1]
+  [
+    ask edges 
+    [
+      set lwr-section 1
+    ]
+  ]
+  
+  ; to determine the number of subedges :
+  ; a time T is needed for a car at max speed to travel along one edge at the micro scale
+  ; un deltax macro est parcouru en un deltaT macro
+  ; il faut donc T deltax macro pour que le temps de parcours d'une edge soit T 
+  
+ ; set nb-subedges max (list 3 round ( [edge-size-patch] of one-of edges / [max-speed-patch-tick] of one-of edges ) )
+  ;set nb-subedges  int ( [edge-size-patch] of one-of edges / [max-speed-patch-tick] of one-of edges ) 
+  ask edges with [lwr-section = 1]
+  [
+    let edge-length edge-size-patch 
+    let i 0
+    repeat nb-subedges - 1          ; on raisonne en sous-tronçons
+    [
+      set i i + 1
+      ask end1
+      [
+        let ref who
+        hatch-nodes 1 
+        [
+          set reference-node ref
+          set sub-node 1
+          set i-node i
+          set size size / 2
+          set shape "dot"
+          set color white
+          fd (edge-length / nb-subedges) * i
+        ]
+        set nb-subnodes i
+      ]
+    ]
+  ]
+end
+
+to generate-SubEdges
+   ask edges with [lwr-section = 1]
+  [  
+   ask end1
+   [
+     let me who
+     let my-Subnode one-of nodes with [reference-node = me and i-node = 1 and sub-node = 1]
+     create-edge-to my-subnode 
+       [
+         set sub-edge 1
+         set lwr-section 1
+         set shape "link-arn2"
+         set color green
+         set thickness 0.05 
+       ]
+   ]
+  ]
+  if nb-subedges > 2
+  [
+   ask nodes with [sub-node = 1]
+   [
+     let next-Subnode one-of nodes with [reference-node = [reference-node] of myself and i-node = ([i-node ] of myself + 1) and sub-node = 1]
+     if is-agent? next-Subnode
+     [
+      create-edge-to next-subnode 
+       [
+         set sub-edge 1
+         set lwr-section 1
+         set shape "link-arn2"
+         set color green
+         set thickness 0.05 
+       ]
+     ]
+   ]
+  ]
+   
+  ask nodes with [count out-link-neighbors = 0 and sub-node = 1 ]
+  [
+    let my-next-node one-of other nodes with [sub-node = 0 and who != [reference-node] of myself] with-min [distance myself]
+    create-edge-to my-next-node 
+    [
+       set sub-edge 1
+       set lwr-section 1
+       set shape "link-arn2"
+       set color green
+       set thickness 0.05 
+     ]
+  ]
+
+end
+   
+to initialize-subedges
+  ask edges with [sub-edge = 1]
+  [
+     set max-speed-km-h maximum-speed-on-edges
+     set max-speed-km-sec max-speed-km-h / 3600
+     set max-speed-patch-tick max-speed-km-sec / patch-size-km    ; 1 tick = 1 sec
+     set current-concentration 0.0
+     set current-flow current-concentration * max-speed-patch-tick  
+     set edge-size-km ( road-size-km / nb-edges ) / nb-subedges
+     set edge-size-patch ( road-size-patch / nb-edges ) / nb-subedges
+     set nb-max-cars-on-edges int ( edge-size-km / car-size-km )
+     set critical-concentration ( nb-max-cars-on-edges * critical-concentration-reduction-factor )
+     set max-flow critical-concentration * max-speed-patch-tick
+  ]
+end 
+
+   
+;to initialize-subedges
+;  ask edges with [sub-edge = 1]
+;  [
+;     set max-speed-km-h maximum-speed-on-edges
+;     set max-speed-km-sec max-speed-km-h / 3600
+;     set max-speed-patch-tick max-speed-km-sec / patch-size-km    ; 1 tick = 1 sec
+;     set current-concentration 0.0
+;     set current-flow current-concentration * max-speed-patch-tick  
+;     set edge-size-km ( road-size-km / nb-edges ) 
+;     set edge-size-patch ( road-size-patch / nb-edges )
+;     set nb-max-cars-on-edges int ( edge-size-km / car-size-km )
+;     set critical-concentration ( nb-max-cars-on-edges * critical-concentration-reduction-factor ) 
+;     set max-flow critical-concentration * max-speed-patch-tick
+;  ]
+;end 

@@ -1,0 +1,63 @@
+to initialize-NasCh-speed
+ask cars 
+[
+  set speed [max-speed-patch-tick] of my-current-edge - random-float 0.2 *  [max-speed-patch-tick] of my-current-edge   ; La vitesse initiale des véhicules est la vitesse max autorisée sur le tronçon à laquelle on retranche aléatoirement entre 0 et 20% de la vitesse max. Les véhicules n’ont donc pas tous la même vitesse initiale.          
+
+]
+end
+
+
+to NaSch-model
+  update-distance-next-node
+  ask cars
+  [
+    compute-Dn
+    adapt-speed
+    randomization
+  ]
+end
+
+
+to compute-Dn
+  let Dist-Nxt-Nde distance-next-node         ; ma distance au prochain noeud
+  if any? cars with [my-current-edge = [my-current-edge] of myself and distance-next-node < Dist-Nxt-Nde]    ; s'il y a une autre voiture devant moi sur a même arête
+  [
+    let Distmax max [distance-next-node] of cars with [my-current-edge = [my-current-edge] of myself and distance-next-node < Dist-Nxt-Nde]  ; détermine la plus grande distance entre toutes les voitures devant et le noeud suivant.
+    set Dn Dist-Nxt-Nde - Distmax                        ; distance entre moi et la voiture de devant qui est la plus proche de moi (et donc la voiture devant moi la plus éloignée du noeud suivant)
+  ]
+end
+
+
+to adapt-speed
+  let Dist-Nxt-Nde distance-next-node    ; ma distance au prochain noeud
+  if speed < [max-speed-patch-tick] of my-current-edge and Dn > speed    ; si le véhicule n'est pas à la vitesse max 
+  [
+    accelerate
+  ]
+  if ( any? cars with [my-current-edge = [my-current-edge] of myself and distance-next-node < Dist-Nxt-Nde] ) and ( Dn <= speed ) ; s'il y a une autre voiture devant moi sur a même arête et si la distance qui me sépare du véhicule le plus proche de moi est inférieure à la vitesse (vitesse = distance parcourue en un pas de temps)
+  [
+    decelerate
+  ]
+end
+
+
+to accelerate
+   let MinComp1 min ( list ( [max-speed-patch-tick] of my-current-edge ) ( speed + speed * NaSch-Factor) )        ; Accélération : Si la voiture n’est pas déjà à la vitesse maximale autorisée, on augmente sa vitesse pour lui donner la valeur : 
+   set speed max ( list 0  MinComp1 )                                                                          ; speed = min(speed+ speed*NaSch-Factor, Maxspeed) (on s'assure que c'est > 0)
+end
+
+to decelerate
+   let MinComp2 min ( list ( speed ) ( Dn - Dn * NaSch-Factor ) )          ; Décélération : Si la distance avec la voiture de devant est inférieur ou égale à speed, on fait décroître la vitesse pour lui donner la valeur :  
+   set speed max ( list 0  MinComp2 )                                      ; speed =min(speed , dn - Dn * NaSch-Factor) (on s'assure que c'est > 0)
+end
+
+
+to randomization 
+  if speed > 0
+  [
+    if ( random-float 1 ) < NaSch-Noise                                     ; Randomisation : Si la vitesse d’une voiture strictement positive, on peut la faire décroire de façon aléatoire de 1 avec une proba  : 
+    [
+       set speed max (list 0 ( speed - speed * NaSch-Factor ))              ; speed = max ( speed - speed * NaSch-Factor , 0) avec une proba         
+    ]
+  ]
+end

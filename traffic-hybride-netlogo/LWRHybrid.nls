@@ -1,0 +1,114 @@
+to go-hybrid
+  reach-all-edges
+  ask  edges  ;LWR
+  [
+    OfferFunction
+    DemandFunction
+  ]
+  ;UpdateConcentration-LWRHybrid
+  
+  UpdateFlow-LWRHybrid
+  
+  Compute-LWR-speed
+  UpdateConcentration-LWRHybrid
+  ifelse traffic-function = "NaSch"
+  [
+    update-car-position
+    initialize-NasCh-speed
+    update-distance-next-node
+    NaSch-model
+  ]
+  [ ;Underwood
+    update-Underwood
+    update-car-position
+  ] 
+  ask edges
+  [
+    set cumulated-current-concentration cumulated-current-concentration + current-concentration         ; mise à jour de la concentration cumulée sur les arcs (test comparatif écoulement)
+    tag-edges                                                                                        ; tag des arcs parcourus par le flux initial (test comparatif écoulement)
+    update-edges-display
+  ]
+  ;color-nodes
+;  tick 
+end
+
+
+to UpdateFlow-LWRHybrid
+  ask edges with [LWR-Section = 0]
+  [
+    set offer 0
+    set current-flow 0
+  ]
+  ask nodes with [any? my-out-edges]
+  [
+    set nxt-offer [offer] of one-of my-out-edges
+  ]
+  ask edges with [LWR-Section = 1]
+  [
+      let next-edge [one-of my-out-links] of [end2] of self  
+      ifelse [LWR-Section] of next-edge = 0
+      [
+        set current-flow  demand
+        
+        let nb-cars-to-redistribute floor (demand / max-speed-patch-tick) 
+        set car-remainder car-remainder + (demand / max-speed-patch-tick) - nb-cars-to-redistribute
+        let car-remainder-int floor car-remainder
+        if (car-remainder-int >= 1) [
+          set nb-cars-to-redistribute nb-cars-to-redistribute + car-remainder-int
+          set car-remainder car-remainder - car-remainder-int
+        ]
+        generateCars-From-LWR nb-cars-to-redistribute  
+      ]
+      [
+        set current-flow min list demand [nxt-offer] of end2
+      ]
+    
+  ]
+end
+
+
+to generateCars-From-LWR [nb]
+  ask end2 
+  [
+    let considered-edge one-of my-out-edges
+    if [LWR-Section] of considered-edge = 0          ; On ne crée de voitures que si l'arc sortant n'est pas LWR lui même
+     [
+       hatch-cars nb
+       [
+         set my-current-edge considered-edge
+         set current-node [end1] of my-current-edge
+         set next-node [end2] of my-current-edge     ; de cette manière les véhicules sont directement gérés pas la fonction update-car-position
+         ask my-current-edge
+         [
+           set current-concentration current-concentration + 1
+         ]
+         set concentration-of-my-current-edge count cars with [my-current-edge = [my-current-edge] of myself] ;les voitures mettent à jour cet attribut l'une après l'autre, ce qui revient à définir un ordre de positionnement sur l'arc
+         set size 0.4
+         set shape "arn-car-yellow"
+         update-my-position
+        ]
+      ]
+    ]
+end
+
+
+to UpdateConcentration-LWRHybrid
+  ask nodes  with [any? my-in-edges]
+  [
+     set prvs-flow [current-flow] of one-of my-in-edges
+  ]
+  ask edges with [LWR-Section = 1]
+ [
+     set previous-flow [prvs-flow] of end1
+     set current-concentration ( current-concentration + ( 1 / max-speed-patch-tick ) * ( previous-flow - current-flow ) )
+ ]
+end
+
+
+to UpdatePreviousEdgeFlowFromCars
+  let myspeed speed
+  ask my-current-edge
+  [
+    set current-flow myspeed
+  ]
+end

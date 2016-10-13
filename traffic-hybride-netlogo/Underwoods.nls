@@ -1,0 +1,66 @@
+to update-Underwood
+     if traffic-function = "Homogeneous" ;  peut être vue comme Underwood sans adaptation de la vitesse par rapport à la concentration
+    [
+      update-car-speed
+    ]
+    if traffic-function = "Underwood"  ; prise en compte de la concentration de l'edge sur laquelle le véhicule évolue pour en calculer la vitesse
+    [
+      update-car-speed-underwood
+    ]
+    if traffic-function = "Underwood-Random"   ; prise en compte de la concentration de l'edge sur laquelle le véhicule évolue pour en calculer la vitesse en ajoutant un terme random
+    [
+    update-car-speed-underwood-random
+    ]
+    if traffic-function = "Underwood-Cars-Forward"   ; prise en compte de la concentration de la portion de l'edge qui se trouve devant le véhicule considéré pour en calculer la vitesse
+    [
+      update-car-speed-underwood-forward
+    ]
+end
+
+;; la vitesse des voitures est égale à la vitesse max autorisée sur l'edge 
+
+to update-car-speed
+  ask cars
+  [
+    set speed ( [max-speed-patch-tick] of my-current-edge )
+  ]
+end
+
+
+to update-car-speed-underwood
+  ask cars 
+  [
+        set speed ( [max-speed-patch-tick] of my-current-edge ) * exp(- (( [current-concentration] of my-current-edge ) / ([nb-max-cars-on-edges] of my-current-edge) ))
+    ]
+end
+
+;; c'est la fonction de underwood à laquelle on ajoute un terme random pour ne pas que les voitures se déplacent en petit train compact
+
+to update-car-speed-underwood-random
+  ask cars 
+  [
+  set speed max (list  ( ( [max-speed-patch-tick] of my-current-edge ) * exp(- (( [current-concentration] of my-current-edge ) / ([nb-max-cars-on-edges] of my-current-edge) )) - random-float (speed * Underwood-Factor)) 0)
+  
+  ]
+end
+
+
+;; la vitesse des voitures est égale à la vitesse max autorisée sur l'edge si la concentration critique n'est pas atteinte
+;; si la concentration critique est atteinte, la vitesse des voiture est égale à la vitesse max autorisée sur l'edge que multiplie exp(-...) : fonction de underwood
+
+to update-car-speed-underwood-forward
+  update-distance-next-node
+  ask cars 
+  [
+    let Dist-Nxt-Nde distance-next-node 
+    let my-edge my-current-edge 
+    let forward-concentration count cars with [(my-current-edge = my-edge) and (distance-next-node < Dist-Nxt-Nde)]  ;la concentration est calculée pour la portion de tronçon qui se trouve devant le véhicule considéré.
+    set speed max (list  ( ( [max-speed-patch-tick] of my-edge ) * exp(- (forward-concentration / (([nb-max-cars-on-edges] of my-edge)   * (Dist-Nxt-Nde  / [edge-size-patch] of my-edge) ))) - random-float (speed * Underwood-Factor)) 0) 
+  ]
+end
+
+
+
+
+
+

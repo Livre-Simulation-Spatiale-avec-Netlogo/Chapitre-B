@@ -1,0 +1,84 @@
+; Pour mettre à jour le débit et la concentration des edges à chaque pas de temps, on utilise la fonction d'offre et la fonction de demande. 
+; Ces fonctions définissent la capacité d'accueil (offre) et la capacité d'émission (demande) d'une edge. 
+
+; Fonction Offre : nombre de véhicules pouvant entrer sur un edge. 
+; Plus il y a de véhicules sur un edge, moins il y a de place libre. Si le nombre de véhicule est supérieur à la concentration critique, l'offre décroit. 
+
+to OfferFunction
+  ifelse current-concentration <= critical-concentration
+  [
+    set offer max-flow
+  ]
+  [
+    set offer max list 0  ( (- max-flow / critical-concentration) * current-concentration + 2 * max-flow )
+  ]
+end
+
+
+; Fonction demande : nombre de véhicules qui souhaitent sortir de l'edge.
+; Plus il y a de véhicules sur l'edge et plus ils souhaitent sortir jusqu'à ce que la concentration critique soit atteinte. 
+  
+to DemandFunction
+  ifelse current-concentration <= critical-concentration
+  [
+     set demand max list 0 ( ( max-flow / critical-concentration) * current-concentration )
+  ]
+  [
+    set demand max-flow ;
+  ]
+end
+
+
+; Le débit et la concentration sont mis à jour en fonction des fonctions d'offre et de demande de l'edge courant, mais également de l'edge précédente et de la suivante. 
+  
+; Au cours d'un pas de temps, le débit d'un edge prend la valeur minimum entre sa demande et l'offre de l'edge suivante. 
+; Le débit du dernier edge est égal à sa demande. 
+
+to UpdateFlow
+  ask nodes with [any? my-out-edges]
+  [
+    set nxt-offer [offer] of one-of my-out-edges
+  ]
+  ask edges
+  [
+
+    set current-flow min list demand [nxt-offer] of end2
+
+  ]
+end
+
+
+; Après un pas de temps, la concentration est mise à jour à partir de la concentration courante en fonction des concentrations entrantes et sortantes. 
+; La concentration du premier edge ne prend en compte que les véhicules sortants. 
+
+to UpdateConcentration
+  ask nodes  with [any? my-in-edges]
+  [
+     set prvs-flow [current-flow] of one-of my-in-edges
+  ]
+  ask edges
+ [
+     set previous-flow [prvs-flow] of end1
+     set current-concentration ( current-concentration + ( 1 / max-speed-patch-tick ) * ( previous-flow - current-flow ) )
+ ]
+end
+
+
+; pour déduire la vitesse à partir de la concentration et du débit
+; débit = concentration * vitesse --> vitesse = débit / concentration
+
+
+to Compute-LWR-speed
+  ask edges 
+  [
+    ifelse current-concentration >= 1
+    [
+      set speed-on-Edge current-flow /  current-concentration
+    ]
+    [
+      set speed-on-Edge 0
+    ]
+  ]
+end
+  
+

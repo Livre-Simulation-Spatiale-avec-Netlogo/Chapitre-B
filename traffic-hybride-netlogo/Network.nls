@@ -1,0 +1,100 @@
+breed [nodes node]
+directed-link-breed [edges edge]
+
+nodes-own
+[
+  nb-subnodes
+  traffic-transited
+  nxt-offer
+  prvs-flow
+  connected-to-LWR-Section
+  sub-node
+  reference-node
+  i-node
+]
+
+edges-own
+[
+  edge-size-km
+  edge-size-patch
+  nb-max-cars-on-edges
+  current-concentration
+  critical-concentration
+  max-speed-km-h
+  max-speed-km-sec
+  max-speed-patch-tick
+  ;; LWR specific globals :
+  offer
+  demand
+  next-offer
+  previous-flow
+  current-flow
+  max-flow
+  speed-on-Edge
+  edge-already-visited?
+  cumulated-current-concentration
+  number-of-cars-passed
+  LWR-section
+  sub-edge
+  car-remainder
+]
+
+ 
+to setup-nodes
+  create-ordered-nodes nb-nodes
+  [
+    fd 4
+    set size 0.5
+    set shape "dot-arn"
+    set color gray
+  ]
+end
+
+
+to connect-nodes
+  ask nodes
+  [
+    if who < nb-nodes - 1 
+    [
+      set heading towards node ( who + 1 )
+       create-edge-to node ( who + 1 )
+       [
+         set shape "link-arn"
+         set color [color] of end1
+         set thickness 0.05 
+       ]
+    ]
+
+    if who = nb-nodes - 1
+    
+    [
+       set heading towards node 0
+      create-edge-to node 0
+      [
+         set shape "link-arn"
+         set color [color] of end1
+         set thickness 0.05 
+      ]
+    ]
+
+  ]
+end
+
+to define-LWR-Sections
+  ask n-of NB-LWR-Edges edges with [[who] of end1 != 0]
+ [
+   set LWR-Section 1
+ ]
+  
+end
+
+ to update-edges-display
+    set thickness ln( 1 + ( current-concentration / 1000 ) )                               ; The width of a edge depends on its concentration.
+    if any? edges with [current-concentration > 0] 
+    [set color scale-color red current-concentration 0 max [current-concentration] of edges]
+    ask edges with [LWR-Section = 1]
+    [
+      set color blue
+      
+    ]
+end
